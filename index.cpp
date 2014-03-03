@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <omp.h>
 #include "Matrix.h"
 #include "MatrixList.h"
 
@@ -85,6 +86,9 @@ void verifyMatrixSize(MatrixList* &ml)
 
 int main(int argc, char** argv)
 {
+	double start=omp_get_wtime();
+	double end;
+	
 	Matrix* m1=NULL;
 	Matrix* m2=NULL;
 	MatrixList *ml=NULL;
@@ -108,6 +112,9 @@ int main(int argc, char** argv)
 	delete m1; // matrixes created in readInputFile method
 	delete m2;
 	delete ml; // matrix list containing both matrixes - in readInputFile
+	
+	end=omp_get_wtime();
+	if (verbose) cout << "Calculation took " << (end-start) << " seconds." << endl;
 	
 	return (EXIT_SUCCESS);
 }

@@ -5,7 +5,7 @@
 # znamienko = SIGN
 # maximalna hodnota prvku v matici = RANGE
 
-MAXSIZE=5
+MAXSIZE=20
 RANGE=10
 
 # in input parameters are not entered, generate a matrix with random size
