@@ -9,7 +9,10 @@ private:
 	Matrix *m1;
 	Matrix *m2;
 	Matrix *mClassic;
+	Matrix *mClassicOptimised;
 	Matrix *mStrassen;
+	double start_timer, end_timer;
+	double classic_length, optimised_length;
 public:
 	MatrixList (Matrix* m1, Matrix* m2);
 	
@@ -17,6 +20,7 @@ public:
 
 	bool isCorrectSize() const;
 	void classic();
+	void classicOptimised();
 	void strassen();
 };
 

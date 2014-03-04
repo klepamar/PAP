@@ -10,8 +10,13 @@
 
 using namespace std;
 
-char* filename;
-bool verbose = false;
+/* DEFINE "GLOBAL" VARIABLES HERE */
+
+char* filename; // where input matrixes are stored
+bool verbose = false; // produce debugging messages with -v flag
+int block = 100; // block size used for loop tiling in classical approach
+
+/* END OF GLOBAL VARIABLES DEFINITION */
 
 /* read source data from input file & initialise matrixes */
 void readInputFile (Matrix* &m1, Matrix* &m2, MatrixList* &ml)
@@ -36,9 +41,6 @@ void readInputFile (Matrix* &m1, Matrix* &m2, MatrixList* &ml)
 	in.close(); // end up processing file
 	
 	ml = new MatrixList(m1,m2); // create a new object - MatrixList, which includes both matrixes
-	
-	m1->displayMatrix();
-	m2->displayMatrix();
 }
 
 /* display help when invalid option has been used */
@@ -86,8 +88,8 @@ void verifyMatrixSize(MatrixList* &ml)
 
 int main(int argc, char** argv)
 {
-	double start=omp_get_wtime();
-	double end;
+	//double start=omp_get_wtime();
+	//double end;
 	
 	Matrix* m1=NULL;
 	Matrix* m2=NULL;
@@ -107,14 +109,16 @@ int main(int argc, char** argv)
 		exit (EXIT_FAILURE);
 	}
 	
+	//m1->displayAddresses();
 	ml->classic();
+	ml->classicOptimised();
 	
 	delete m1; // matrixes created in readInputFile method
 	delete m2;
 	delete ml; // matrix list containing both matrixes - in readInputFile
 	
-	end=omp_get_wtime();
-	if (verbose) cout << "Calculation took " << (end-start) << " seconds." << endl;
+	//end=omp_get_wtime();
+	//if (verbose) cout << "Calculation took " << (end-start) << " seconds." << endl;
 	
 	return (EXIT_SUCCESS);
 }

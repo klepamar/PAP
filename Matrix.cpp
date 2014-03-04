@@ -7,6 +7,9 @@
 
 using namespace std;
 
+extern char* result;
+extern ofstream resultStream;
+
 Matrix::Matrix (int x, int y)
 {
 	this->dimX = x;
@@ -60,6 +63,22 @@ void Matrix::fillMatrix(istream &in)
 		}
 		getline(in,dummy); // get rid of new line character
 	}
+}
+
+void Matrix::displayAddresses() const
+{
+	cout << "<HOW MATRIX IS INTERNALLY SAVED>" << endl;
+	for (int i=0; i<dimX; i++)
+	{
+		for (int j=0; j<dimY; j++)
+		{
+			if ((j+1) == dimY)
+				cout << &(matrix[i][j]) << endl;
+			else
+				cout << &(matrix[i][j]) << " ";
+		}
+	}
+	cout << "</HOW MATRIX IS INTERNALLY SAVED>" << endl;
 }
 
 void Matrix::displayMatrix() const
