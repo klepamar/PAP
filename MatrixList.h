@@ -2,6 +2,7 @@
 #define	MATRIXLIST_H
 
 #include "Matrix.h"
+#include "math.h"
 
 class MatrixList
 {
@@ -19,6 +20,8 @@ private:
 	void mul(Matrix *A, Matrix *B, Matrix *C, int size);
 
 	void compute(Matrix *A, Matrix *B, Matrix *C, int size);
+	int nextPowerOf2(int number) const;
+	int maxDim() const;
 public:
 	MatrixList (Matrix* m1, Matrix* m2);
 	

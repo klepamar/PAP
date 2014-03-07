@@ -81,6 +81,15 @@ void Matrix::displayAddresses() const
 	cout << "</HOW MATRIX IS INTERNALLY SAVED>" << endl;
 }
 
+void Matrix::showMatrix() const {
+	cout << "dimensions (x,y): " << this->dimX << "," << this->dimY << endl;
+	for (int i=0; i<this->dimX; i++) {
+		for (int j=0; j<this->dimY; j++)
+			cout << setw(6) << this->matrix[i][j];
+		cout << endl;
+	}
+}
+
 void Matrix::displayMatrix() const
 {
 	cout << "<MATRIX>" << endl;

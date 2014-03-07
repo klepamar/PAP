@@ -14,6 +14,7 @@ public:
 	
 	void fillMatrix(std::istream &in);
 	void displayMatrix() const;
+	void showMatrix() const;
 	void displayAddresses() const;
 	int getDimX() const;
 	int getDimY() const;
