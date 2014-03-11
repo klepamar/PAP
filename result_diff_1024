@@ -1,0 +1,3 @@
+> Classical algorithm took 21.0955 seconds.
+< Classical algorithm with loop tiling took 18.6458 seconds
+> Strassen algorithm took 8.40232
