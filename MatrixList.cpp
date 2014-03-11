@@ -20,8 +20,8 @@ MatrixList::MatrixList (Matrix* m1, Matrix* m2)
 	this->mClassic = this->mClassicOptimised = this->mStrassen = NULL;
 		
 	// display input matrixes
-	m1->displayMatrix();
-	m2->displayMatrix();
+//	m1->displayMatrix();
+//	m2->displayMatrix();
 }
 
 MatrixList::~MatrixList()
@@ -52,7 +52,8 @@ void MatrixList::classic ()
 	end_timer=omp_get_wtime();	
 	classic_length=end_timer-start_timer;
 	
-	mClassic->displayMatrix();
+	mClassic->showMatrix();
+//	mClassic->displayMatrix();
 	if (verbose) cout << "Classical algorithm took " << classic_length << " seconds." << endl;
 }
 
@@ -76,8 +77,10 @@ void MatrixList::classicOptimised()
 	end_timer=omp_get_wtime();
 	optimised_length=end_timer-start_timer;
 	
-	mClassicOptimised->displayMatrix();
-	if (verbose) cout << "Classical algorithm with loop tiling took " << optimised_length << " seconds (" << (optimised_length/classic_length)*100 << " % of the original value)." << endl;
+	mClassicOptimised->showMatrix();
+//	mClassicOptimised->displayMatrix();
+//	if (verbose) cout << "Classical algorithm with loop tiling took " << optimised_length << " seconds (" << (optimised_length/classic_length)*100 << " % of the original value)." << endl;
+	if (verbose) cout << "Classical algorithm with loop tiling took " << (double)optimised_length << " seconds" << endl;
 }
 
 void MatrixList::add(Matrix *A, Matrix *B, Matrix *C, int size){
@@ -101,7 +104,7 @@ void MatrixList::mul(Matrix *A, Matrix *B, Matrix *C, int size){
 }
 
 void MatrixList::compute(Matrix *A, Matrix *B, Matrix *C, int size){
-	if (size <= 1) {
+	if (size <= 64) {
 		this->mul(A,B,C,size);
 		return;
 	}
@@ -190,6 +193,28 @@ void MatrixList::compute(Matrix *A, Matrix *B, Matrix *C, int size){
 			C->getMatrix()[i+halfSize][j+halfSize] = c22->getMatrix()[i][j];
 		}
 	}
+
+	delete a11;
+	delete a12;
+	delete a21;
+	delete a22;
+	delete b11;
+	delete b12;
+	delete b21;
+	delete b22;
+	delete c11;
+	delete c12;
+	delete c21;
+	delete c22;
+	delete p1;
+	delete p2;
+	delete p3;
+	delete p4;
+	delete p5;
+	delete p6;
+	delete p7;
+	delete aR;
+	delete bR;
 }
 
 int MatrixList::nextPowerOf2(int number) const {
@@ -230,7 +255,9 @@ this->mStrassen = new Matrix (m1->getDimX(),m2->getDimY());
 			for (int j=0; j<m2->getDimY(); j++)
 				m2Resize->getMatrix()[i][j] = m2->getMatrix()[i][j];
 
+		start_timer=omp_get_wtime();
 		this->compute(m1Resize,m2Resize,mStrassenResize,newSize);
+		end_timer=omp_get_wtime();
 
 		for (int i=0; i<this->mStrassen->getDimX(); i++)
 			for (int j=0; j<this->mStrassen->getDimY(); j++)
@@ -241,8 +268,13 @@ this->mStrassen = new Matrix (m1->getDimX(),m2->getDimY());
 		delete mStrassenResize;
 	}
 	else {
-		this->compute(this->m1,this->m2,this->mStrassen,8);
+		start_timer=omp_get_wtime();
+		this->compute(this->m1,this->m2,this->mStrassen,this->m1->getDimX());
+		end_timer=omp_get_wtime();
 	}
-	this->mStrassen->displayMatrix();
+	
+	this->mStrassen->showMatrix();
+	optimised_length = end_timer - start_timer;
+	if (verbose) cout << "Strassen algorithm took " << optimised_length << endl;
 
 }

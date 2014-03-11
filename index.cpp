@@ -110,7 +110,7 @@ int main(int argc, char** argv)
 	}
 	
 	//m1->displayAddresses();
-	ml->classic();
+	//ml->classic();
 	//ml->classicOptimised();
 	ml->strassen();
 	
