@@ -7,6 +7,7 @@ using namespace std;
 
 extern bool verbose; // use verbose variable defined in index.cpp
 extern int block; // use block variable defined in index.cpp
+extern int cpuNumber; // use variable defining no of active processors defined in index.cpp
 
 inline int min (int a, int b) // define as inline function (= entire function definition will be inserted into the code instead of performing jumps to its memory location)
 {
@@ -42,33 +43,41 @@ void MatrixList::classic ()
 	// here goes classical approach
 	mClassic = new Matrix (m1->getDimX(),m2->getDimY());
 
-	start_timer=omp_get_wtime();
+	int i,j,k; // premenne cyklu
 
-	for (int i=0; i<m1->getDimX(); i++) // m1-riadok
-		for (int j=0; j<m2->getDimY(); j++) // m2-stlpec
-			for (int k=0; k<m1->getDimY(); k++) // m1-stlpec == m2-riadok
-				this->mClassic->getMatrix()[i][j] += this->m1->getMatrix()[i][k] * this->m2->getMatrix()[k][j];
-				
+	start_timer=omp_get_wtime();
+	
+	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien	
+	#pragma omp parallel for collapse (2) default(shared) private(i,j,k) schedule(static)
+		for (i=0; i<m1->getDimX(); i++) // m1-riadok
+			for (j=0; j<m2->getDimY(); j++) // m2-stlpec
+				for (k=0; k<m1->getDimY(); k++) // m1-stlpec == m2-riadok
+					this->mClassic->getMatrix()[i][j] += this->m1->getMatrix()[i][k] * this->m2->getMatrix()[k][j];
 	end_timer=omp_get_wtime();	
 	classic_length=end_timer-start_timer;
 	
 	mClassic->showMatrix();
 //	mClassic->displayMatrix();
-	if (verbose) cout << "Classical algorithm took " << classic_length << " seconds." << endl;
+	if (verbose) cout << "Classical algorithm (" << cpuNumber << " threads) took " << classic_length << " seconds." << endl;
 }
 
 void MatrixList::classicOptimised()
 {
 	// classical approach with loop tiling mechanism
 	mClassicOptimised = new Matrix (m1->getDimX(),m2->getDimY());
+	
+	int i,j,k,ii,jj,kk; // premenne cyklu
+	
 	start_timer=omp_get_wtime();
 
-	for (int ii=0; ii<m1->getDimX(); ii+=block)
-		for (int jj=0; jj<m2->getDimY(); jj+=block)
-			for (int kk=0; kk<m1->getDimY(); kk+=block)
-				for (int i=ii; i<min(ii + block, m1->getDimX()); i++) // loop tiling - perform multiplication on submatrixes 
-					for (int j=jj; j<min(jj + block, m2->getDimY()); j++) 
-						for (int k=kk; k<min(kk + block, m1->getDimY()); k+=2) // loop unrolling - perform two additions in one iteration and therefore decrease no of iterations by half
+	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
+	#pragma omp parallel for collapse (2) default(shared) private(i,j,k,ii,jj,kk) schedule(static)
+	for (ii=0; ii<m1->getDimX(); ii+=block)
+		for (jj=0; jj<m2->getDimY(); jj+=block)
+			for (kk=0; kk<m1->getDimY(); kk+=block)
+				for (i=ii; i<min(ii + block, m1->getDimX()); i++) // loop tiling - perform multiplication on submatrixes 
+					for (j=jj; j<min(jj + block, m2->getDimY()); j++) 
+						for (k=kk; k<min(kk + block, m1->getDimY()); k+=2) // loop unrolling - perform two additions in one iteration and therefore decrease no of iterations by half
 						{
 							this->mClassicOptimised->getMatrix()[i][j] += this->m1->getMatrix()[i][k] * this->m2->getMatrix()[k][j];
 							if ((k+1) != min(kk + block, m1->getDimY())) // do not access memory behind the last element at the end of the loop
@@ -80,7 +89,7 @@ void MatrixList::classicOptimised()
 	mClassicOptimised->showMatrix();
 //	mClassicOptimised->displayMatrix();
 //	if (verbose) cout << "Classical algorithm with loop tiling took " << optimised_length << " seconds (" << (optimised_length/classic_length)*100 << " % of the original value)." << endl;
-	if (verbose) cout << "Classical algorithm with loop tiling took " << (double)optimised_length << " seconds" << endl;
+	if (verbose) cout << "Classical algorithm with loop tiling (" << cpuNumber << " threads) took " << (double)optimised_length << " seconds." << endl;
 }
 
 void MatrixList::add(Matrix *A, Matrix *B, Matrix *C, int size){
@@ -275,6 +284,6 @@ this->mStrassen = new Matrix (m1->getDimX(),m2->getDimY());
 	
 	this->mStrassen->showMatrix();
 	optimised_length = end_timer - start_timer;
-	if (verbose) cout << "Strassen algorithm took " << optimised_length << endl;
+	if (verbose) cout << "Strassen algorithm (" << cpuNumber << " threads) took " << optimised_length << " seconds." << endl;
 
 }

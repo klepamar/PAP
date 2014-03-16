@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-fopenmp
+CFLAGS=-fopenmp -O3 -funroll-loops
 
 all: index
 

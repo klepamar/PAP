@@ -5,6 +5,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <omp.h>
+#include <stdlib.h>
 #include "Matrix.h"
 #include "MatrixList.h"
 
@@ -15,6 +16,7 @@ using namespace std;
 char* filename; // where input matrixes are stored
 bool verbose = false; // produce debugging messages with -v flag
 int block = 100; // block size used for loop tiling in classical approach
+int cpuNumber; // number of processesors active during OpenMP execution
 
 /* END OF GLOBAL VARIABLES DEFINITION */
 
@@ -48,6 +50,7 @@ void displayHelp ()
 {
 	cout << "Usage:" << endl <<
 			"\t-f FILE\tinput file with matrixes" << endl <<
+			"\t-n NO_OF_CPUS\t number of active CPUs" << endl <<
 			"\t-v\tverbose mode (optional)" << endl;
 }
 
@@ -70,6 +73,11 @@ void processArguments (int argc, char** argv)
 		else if (strcmp(argv[i],"-v") == 0) // -v...verbose mode
 		{
 			verbose = true;
+		}
+		else if (strcmp(argv[i],"-n") == 0) // -n...number of active CPUs
+		{
+			cpuNumber = atoi(argv[i+1]);
+			i++;
 		}
 		else
 		{
@@ -110,9 +118,9 @@ int main(int argc, char** argv)
 	}
 	
 	//m1->displayAddresses();
-	//ml->classic();
+	ml->classic();
 	//ml->classicOptimised();
-	ml->strassen();
+	//ml->strassen();
 	
 	delete m1; // matrixes created in readInputFile method
 	delete m2;
