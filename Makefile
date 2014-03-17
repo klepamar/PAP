@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-fopenmp -O3 -funroll-loops
+CFLAGS=-fopenmp -O3
 
 all: index
 
@@ -17,4 +17,3 @@ MatrixList.o: MatrixList.cpp
 
 clean:
 	rm -rf *.o
-
