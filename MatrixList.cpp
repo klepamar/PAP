@@ -92,54 +92,41 @@ void MatrixList::classicOptimised()
 	if (verbose) cout << "Classical algorithm with loop tiling (" << cpuNumber << " threads) took " << (double)optimised_length << " seconds." << endl;
 }
 
-void MatrixList::add(Matrix *A, Matrix *B, Matrix *C, int size){
+void MatrixList::add(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X, int B_off_Y, Matrix *C, int C_off_X, int C_off_Y, int size){
 	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
 	#pragma omp parallel for collapse (2) default(shared) schedule(static)
 	for (int i=0; i<size; i++)
 		for (int j=0; j<size; j++)
-			C->getMatrix()[i][j] = A->getMatrix()[i][j] + B->getMatrix()[i][j];
+			C->getMatrix()[i+C_off_X][j+C_off_Y] = A->getMatrix()[i+A_off_X][j+A_off_Y] + B->getMatrix()[i+B_off_X][j+B_off_Y];
 }
 
-void MatrixList::sub(Matrix *A, Matrix *B, Matrix *C, int size){
+void MatrixList::sub(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X, int B_off_Y, Matrix *C, int C_off_X, int C_off_Y, int size){
 	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
 	#pragma omp parallel for collapse (2) default(shared) schedule(static)
 	for (int i=0; i<size; i++)
 		for (int j=0; j<size; j++)
-			C->getMatrix()[i][j] = A->getMatrix()[i][j] - B->getMatrix()[i][j];
+			C->getMatrix()[i+C_off_X][j+C_off_Y] = A->getMatrix()[i+A_off_X][j+A_off_Y] - B->getMatrix()[i+B_off_X][j+B_off_Y];
 }
 
 
-void MatrixList::mul(Matrix *A, Matrix *B, Matrix *C, int size){
+void MatrixList::mul(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X, int B_off_Y, Matrix *C, int C_off_X, int C_off_Y, int size){
 	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
 	#pragma omp parallel for collapse (2) default(shared) schedule(static)
 		for (int i=0; i<size; i++)
 			for (int j=0; j<size; j++)
 				for (int k=0; k<size; k++)
-					C->getMatrix()[i][j] += A->getMatrix()[i][k] * B->getMatrix()[k][j];
-//					C->getMatrix()[i][k] += A->getMatrix()[i][j] * B->getMatrix()[j][k];
+					C->getMatrix()[i+C_off_X][j+C_off_Y] += A->getMatrix()[i+A_off_X][k+A_off_Y] * B->getMatrix()[k+B_off_X][j+B_off_Y];
 }
 
-void MatrixList::compute(Matrix *A, Matrix *B, Matrix *C, int size){
+void MatrixList::compute(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X, int B_off_Y, Matrix *C, int C_off_X, int C_off_Y, int size){
 	if (size <= 64) {
-		this->mul(A,B,C,size);
+		this->mul(A,A_off_X,A_off_Y,B,B_off_X,B_off_Y,C,C_off_X,C_off_Y,size);
 		return;
 	}
 
 	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
 
 	int halfSize = size / 2;
-	Matrix * a11 = new Matrix(halfSize,halfSize);
-	Matrix * a12 = new Matrix(halfSize,halfSize);
-	Matrix * a21 = new Matrix(halfSize,halfSize);
-	Matrix * a22 = new Matrix(halfSize,halfSize);
-	Matrix * b11 = new Matrix(halfSize,halfSize);
-	Matrix * b12 = new Matrix(halfSize,halfSize);
-	Matrix * b21 = new Matrix(halfSize,halfSize);
-	Matrix * b22 = new Matrix(halfSize,halfSize);
-	Matrix * c11 = new Matrix(halfSize,halfSize);
-	Matrix * c12 = new Matrix(halfSize,halfSize);
-	Matrix * c21 = new Matrix(halfSize,halfSize);
-	Matrix * c22 = new Matrix(halfSize,halfSize);
 	Matrix * p1 = new Matrix(halfSize,halfSize);
 	Matrix * p2 = new Matrix(halfSize,halfSize);
 	Matrix * p3 = new Matrix(halfSize,halfSize);
@@ -150,104 +137,41 @@ void MatrixList::compute(Matrix *A, Matrix *B, Matrix *C, int size){
 	Matrix * aR = new Matrix(halfSize,halfSize);
 	Matrix * bR = new Matrix(halfSize,halfSize);
 
-	int i,j;
+	this->add(A,A_off_X+0,A_off_Y+0,A,A_off_X+halfSize,A_off_Y+halfSize,aR,0,0,halfSize);		//a11+a22
+	this->add(B,B_off_X+0,B_off_Y+0,B,B_off_X+halfSize,B_off_Y+halfSize,bR,0,0,halfSize);		//b11+b22
+	this->compute(aR,0,0,bR,0,0,p1,0,0,halfSize);							//p1=a11+a22 * b11+b22
 
-	//rozdelnie matic A a B do 4 podmatic
-	#pragma omp parallel for collapse (2) default(shared) schedule(static)
-	for (i=0; i<halfSize; i++) {
-		for (j=0; j<halfSize; j++) {
-			a11->getMatrix()[i][j] = A->getMatrix()[i][j];
-			a12->getMatrix()[i][j] = A->getMatrix()[i][j+halfSize];
-			a21->getMatrix()[i][j] = A->getMatrix()[i+halfSize][j];
-			a22->getMatrix()[i][j] = A->getMatrix()[i+halfSize][j+halfSize];
+	this->add(A,A_off_X+halfSize,A_off_Y+0,A,A_off_X+halfSize,A_off_Y+halfSize,aR,0,0,halfSize);	//a21+a22
+	this->compute(aR,0,0,B,B_off_X+0,B_off_Y+0,p2,0,0,halfSize);					//p2=a21+a22 * b11
 
-			b11->getMatrix()[i][j] = B->getMatrix()[i][j];
-			b12->getMatrix()[i][j] = B->getMatrix()[i][j+halfSize];
-			b21->getMatrix()[i][j] = B->getMatrix()[i+halfSize][j];
-			b22->getMatrix()[i][j] = B->getMatrix()[i+halfSize][j+halfSize];
-		}
-	}
+	this->sub(B,B_off_X+0,B_off_Y+halfSize,B,B_off_X+halfSize,B_off_Y+halfSize,bR,0,0,halfSize);	//b12-b22
+	this->compute(A,A_off_X+0,A_off_Y+0,bR,0,0,p3,0,0,halfSize);					//p3=a11 * b12-b22
 
-#pragma omp task
-{
-	this->add(a11,a22,aR,halfSize);		//a11+a22
-	this->add(b11,b22,bR,halfSize);		//b11+b22
-	this->compute(aR,bR,p1,halfSize);	//p1=a11+a22 * b11+b22
-}
+	this->sub(B,B_off_X+halfSize,B_off_Y+0,B,B_off_X+0,B_off_Y+0,bR,0,0,halfSize);			//b21-b11
+	this->compute(A,A_off_X+halfSize,A_off_Y+halfSize,bR,0,0,p4,0,0,halfSize);			//p4=a22 * b21-b11
 
-#pragma omp task
-{
-	this->add(a21,a22,aR,halfSize);		//a21+a22
-	this->compute(aR,b11,p2,halfSize);	//p2=a21+a22 * b11
-}
+	this->add(A,A_off_X+0,A_off_Y+0,A,A_off_X+0,A_off_Y+halfSize,aR,0,0,halfSize);			//a11+a12
+	this->compute(aR,0,0,B,B_off_X+halfSize,B_off_Y+halfSize,p5,0,0,halfSize);			//p5=a11+a12 * b22
 
-#pragma omp task
-{
-	this->sub(b12,b22,bR,halfSize);		//b12-b22
-	this->compute(a11,bR,p3,halfSize);	//p3=a11 * b12-b22
-}
+	this->sub(A,A_off_X+halfSize,A_off_Y+0,A,A_off_X+0,A_off_Y+0,aR,0,0,halfSize);			//a21-a11
+	this->add(B,B_off_X+0,B_off_Y+0,B,B_off_X+0,B_off_Y+halfSize,bR,0,0,halfSize);			//b11+b12
+	this->compute(aR,0,0,bR,0,0,p6,0,0,halfSize);							//p6=a21-a11 * b11+b22
 
-#pragma omp task
-{
-	this->sub(b21,b11,bR,halfSize);		//b21-b11
-	this->compute(a22,bR,p4,halfSize);	//p4=a22 * b21-b11
-}
+	this->sub(A,A_off_X+0,A_off_Y+halfSize,A,A_off_X+halfSize,A_off_Y+halfSize,aR,0,0,halfSize);	//a12-a22
+	this->add(B,B_off_X+halfSize,B_off_Y+0,B,B_off_X+halfSize,B_off_Y+halfSize,bR,0,0,halfSize);	//b21+b22
+	this->compute(aR,0,0,bR,0,0,p7,0,0,halfSize);							//p7=a12-a22 * b21+b22
 
-#pragma omp task
-{
-	this->add(a11,a12,aR,halfSize);		//a11+a12
-	this->compute(aR,b22,p5,halfSize);	//p5=a11+a12 * b22
-}
+	this->add(p3,0,0,p5,0,0,C,C_off_X+0,C_off_Y+halfSize,halfSize);					//c12=p3+p5
+	this->add(p2,0,0,p4,0,0,C,C_off_X+halfSize,C_off_Y+0,halfSize);					//c21=p2+p4
 
-#pragma omp task
-{
-	this->sub(a21,a11,aR,halfSize);		//a21-a11
-	this->add(b11,b12,bR,halfSize);		//b11+b12
-	this->compute(aR,bR,p6,halfSize);	//p6=a21-a11 * b11+b22
-}
+	this->add(p1,0,0,p4,0,0,aR,0,0,halfSize);							//p1+p4
+	this->add(aR,0,0,p7,0,0,bR,0,0,halfSize);							//p1+p4+p7
+	this->sub(bR,0,0,p5,0,0,C,C_off_X+0,C_off_Y+0,halfSize);					//c11=p1+p4+p7-p5
 
-#pragma omp task
-{
-	this->sub(a12,a22,aR,halfSize);		//a12-a22
-	this->add(b21,b22,bR,halfSize);		//b21+b22
-	this->compute(aR,bR,p7,halfSize);	//p7=a12-a22 * b21+b22
-}
+	this->add(p1,0,0,p3,0,0,aR,0,0,halfSize);							//p1+p3
+	this->add(aR,0,0,p6,0,0,bR,0,0,halfSize);							//p1+p3+p6
+	this->sub(bR,0,0,p2,0,0,C,C_off_X+halfSize,C_off_Y+halfSize,halfSize);				//c22=p1+p3+p6-p2
 
-	this->add(p3,p5,c12,halfSize);		//c12=p3+p5
-	this->add(p2,p4,c21,halfSize);		//c21=p2+p4
-
-	this->add(p1,p4,aR,halfSize);		//p1+p4
-	this->add(aR,p7,bR,halfSize);		//p1+p4+p7
-	this->sub(bR,p5,c11,halfSize);		//c11=p1+p4+p7-p5
-
-	this->add(p1,p3,aR,halfSize);		//p1+p3
-	this->add(aR,p6,bR,halfSize);		//p1+p3+p6
-	this->sub(bR,p2,c22,halfSize);		//c22=p1+p3+p6-p2
-
-#pragma omp taskwait
-
-#pragma omp parallel for collapse (2) default(shared) private(i,j) schedule(static)
-	for (i=0; i<halfSize; i++){
-		for(j=0; j<halfSize; j++){
-			C->getMatrix()[i][j] = c11->getMatrix()[i][j];
-			C->getMatrix()[i][j+halfSize] = c12->getMatrix()[i][j];
-			C->getMatrix()[i+halfSize][j] = c21->getMatrix()[i][j];
-			C->getMatrix()[i+halfSize][j+halfSize] = c22->getMatrix()[i][j];
-		}
-	}
-
-	delete a11;
-	delete a12;
-	delete a21;
-	delete a22;
-	delete b11;
-	delete b12;
-	delete b21;
-	delete b22;
-	delete c11;
-	delete c12;
-	delete c21;
-	delete c22;
 	delete p1;
 	delete p2;
 	delete p3;
@@ -257,6 +181,7 @@ void MatrixList::compute(Matrix *A, Matrix *B, Matrix *C, int size){
 	delete p7;
 	delete aR;
 	delete bR;
+
 }
 
 int MatrixList::nextPowerOf2(int number) const {
@@ -297,7 +222,7 @@ void MatrixList::strassen () {
 				m2Resize->getMatrix()[i][j] = m2->getMatrix()[i][j];
 
 		start_timer=omp_get_wtime();
-		this->compute(m1Resize,m2Resize,mStrassenResize,newSize);
+		this->compute(m1Resize,0,0,m2Resize,0,0,mStrassenResize,0,0,newSize);
 		end_timer=omp_get_wtime();
 
 		for (int i=0; i<this->mStrassen->getDimX(); i++)
@@ -310,7 +235,7 @@ void MatrixList::strassen () {
 	}
 	else {
 		start_timer=omp_get_wtime();
-		this->compute(this->m1,this->m2,this->mStrassen,this->m1->getDimX());
+		this->compute(this->m1,0,0,this->m2,0,0,this->mStrassen,0,0,this->m1->getDimX());
 		end_timer=omp_get_wtime();
 	}
 	

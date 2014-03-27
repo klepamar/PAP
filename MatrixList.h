@@ -15,11 +15,11 @@ private:
 	double start_timer, end_timer;
 	double classic_length, optimised_length;
 
-	void add(Matrix *A, Matrix *B, Matrix *C, int size);
-	void sub(Matrix *A, Matrix *B, Matrix *C, int size);
-	void mul(Matrix *A, Matrix *B, Matrix *C, int size);
+	void add(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X, int B_off_Y, Matrix *C, int C_off_X, int C_off_Y, int size);
+	void sub(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X, int B_off_Y, Matrix *C, int C_off_X, int C_off_Y, int size);
+	void mul(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X, int B_off_Y, Matrix *C, int C_off_X, int C_off_Y, int size);
 
-	void compute(Matrix *A, Matrix *B, Matrix *C, int size);
+	void compute(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X, int B_off_Y, Matrix *C, int C_off_X, int C_off_Y, int size);
 	int nextPowerOf2(int number) const;
 	int maxDim() const;
 public:
