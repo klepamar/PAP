@@ -93,12 +93,16 @@ void MatrixList::classicOptimised()
 }
 
 void MatrixList::add(Matrix *A, Matrix *B, Matrix *C, int size){
+	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
+	#pragma omp parallel for collapse (2) default(shared) schedule(static)
 	for (int i=0; i<size; i++)
 		for (int j=0; j<size; j++)
 			C->getMatrix()[i][j] = A->getMatrix()[i][j] + B->getMatrix()[i][j];
 }
 
 void MatrixList::sub(Matrix *A, Matrix *B, Matrix *C, int size){
+	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
+	#pragma omp parallel for collapse (2) default(shared) schedule(static)
 	for (int i=0; i<size; i++)
 		for (int j=0; j<size; j++)
 			C->getMatrix()[i][j] = A->getMatrix()[i][j] - B->getMatrix()[i][j];
@@ -106,10 +110,13 @@ void MatrixList::sub(Matrix *A, Matrix *B, Matrix *C, int size){
 
 
 void MatrixList::mul(Matrix *A, Matrix *B, Matrix *C, int size){
-	for (int i=0; i<size; i++)
-		for (int j=0; j<size; j++)
-			for (int k=0; k<size; k++)
-				C->getMatrix()[i][k] += A->getMatrix()[i][j] * B->getMatrix()[j][k];
+	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
+	#pragma omp parallel for collapse (2) default(shared) schedule(static)
+		for (int i=0; i<size; i++)
+			for (int j=0; j<size; j++)
+				for (int k=0; k<size; k++)
+					C->getMatrix()[i][j] += A->getMatrix()[i][k] * B->getMatrix()[k][j];
+//					C->getMatrix()[i][k] += A->getMatrix()[i][j] * B->getMatrix()[j][k];
 }
 
 void MatrixList::compute(Matrix *A, Matrix *B, Matrix *C, int size){
@@ -117,6 +124,8 @@ void MatrixList::compute(Matrix *A, Matrix *B, Matrix *C, int size){
 		this->mul(A,B,C,size);
 		return;
 	}
+
+	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
 
 	int halfSize = size / 2;
 	Matrix * a11 = new Matrix(halfSize,halfSize);
@@ -144,6 +153,7 @@ void MatrixList::compute(Matrix *A, Matrix *B, Matrix *C, int size){
 	int i,j;
 
 	//rozdelnie matic A a B do 4 podmatic
+	#pragma omp parallel for collapse (2) default(shared) schedule(static)
 	for (i=0; i<halfSize; i++) {
 		for (j=0; j<halfSize; j++) {
 			a11->getMatrix()[i][j] = A->getMatrix()[i][j];
@@ -158,29 +168,50 @@ void MatrixList::compute(Matrix *A, Matrix *B, Matrix *C, int size){
 		}
 	}
 
+#pragma omp task
+{
 	this->add(a11,a22,aR,halfSize);		//a11+a22
 	this->add(b11,b22,bR,halfSize);		//b11+b22
 	this->compute(aR,bR,p1,halfSize);	//p1=a11+a22 * b11+b22
+}
 
+#pragma omp task
+{
 	this->add(a21,a22,aR,halfSize);		//a21+a22
 	this->compute(aR,b11,p2,halfSize);	//p2=a21+a22 * b11
+}
 
+#pragma omp task
+{
 	this->sub(b12,b22,bR,halfSize);		//b12-b22
 	this->compute(a11,bR,p3,halfSize);	//p3=a11 * b12-b22
+}
 
+#pragma omp task
+{
 	this->sub(b21,b11,bR,halfSize);		//b21-b11
 	this->compute(a22,bR,p4,halfSize);	//p4=a22 * b21-b11
+}
 
+#pragma omp task
+{
 	this->add(a11,a12,aR,halfSize);		//a11+a12
 	this->compute(aR,b22,p5,halfSize);	//p5=a11+a12 * b22
+}
 
+#pragma omp task
+{
 	this->sub(a21,a11,aR,halfSize);		//a21-a11
 	this->add(b11,b12,bR,halfSize);		//b11+b12
 	this->compute(aR,bR,p6,halfSize);	//p6=a21-a11 * b11+b22
+}
 
+#pragma omp task
+{
 	this->sub(a12,a22,aR,halfSize);		//a12-a22
 	this->add(b21,b22,bR,halfSize);		//b21+b22
 	this->compute(aR,bR,p7,halfSize);	//p7=a12-a22 * b21+b22
+}
 
 	this->add(p3,p5,c12,halfSize);		//c12=p3+p5
 	this->add(p2,p4,c21,halfSize);		//c21=p2+p4
@@ -193,7 +224,9 @@ void MatrixList::compute(Matrix *A, Matrix *B, Matrix *C, int size){
 	this->add(aR,p6,bR,halfSize);		//p1+p3+p6
 	this->sub(bR,p2,c22,halfSize);		//c22=p1+p3+p6-p2
 
-	//spojenie do vyslednej matice
+#pragma omp taskwait
+
+#pragma omp parallel for collapse (2) default(shared) private(i,j) schedule(static)
 	for (i=0; i<halfSize; i++){
 		for(j=0; j<halfSize; j++){
 			C->getMatrix()[i][j] = c11->getMatrix()[i][j];
@@ -241,9 +274,8 @@ int MatrixList::maxDim() const {
 		return (this->m2->getDimY());
 }
 
-void MatrixList::strassen ()
-{
-this->mStrassen = new Matrix (m1->getDimX(),m2->getDimY());
+void MatrixList::strassen () {
+	this->mStrassen = new Matrix (m1->getDimX(),m2->getDimY());
 
 	if (this->m1->getDimX() != this->m1->getDimY() or
 	    this->m2->getDimX() != this->m2->getDimY() or

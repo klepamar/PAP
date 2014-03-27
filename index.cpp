@@ -118,9 +118,9 @@ int main(int argc, char** argv)
 	}
 	
 	//m1->displayAddresses();
-	ml->classic();
+	//ml->classic();
 	//ml->classicOptimised();
-	//ml->strassen();
+	ml->strassen();
 	
 	delete m1; // matrixes created in readInputFile method
 	delete m2;
