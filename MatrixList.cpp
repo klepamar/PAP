@@ -93,7 +93,6 @@ void MatrixList::classicOptimised()
 }
 
 void MatrixList::add(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X, int B_off_Y, Matrix *C, int C_off_X, int C_off_Y, int size){
-//	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
 //	#pragma omp parallel for collapse (2) default(shared) schedule(static)
 	for (int i=0; i<size; i++)
 		for (int j=0; j<size; j++)
@@ -101,7 +100,6 @@ void MatrixList::add(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X
 }
 
 void MatrixList::sub(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X, int B_off_Y, Matrix *C, int C_off_X, int C_off_Y, int size){
-//	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
 //	#pragma omp parallel for collapse (2) default(shared) schedule(static)
 	for (int i=0; i<size; i++)
 		for (int j=0; j<size; j++)
@@ -110,7 +108,6 @@ void MatrixList::sub(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X
 
 
 void MatrixList::mul(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_off_X, int B_off_Y, Matrix *C, int C_off_X, int C_off_Y, int size){
-//	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
 //	#pragma omp parallel for collapse (2) default(shared) schedule(static)
 		for (int i=0; i<size; i++)
 			for (int j=0; j<size; j++)
@@ -124,7 +121,7 @@ void MatrixList::compute(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_o
 		return;
 	}
 
-	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
+	
 
 	int halfSize = size / 2;
 	Matrix * p1 = new Matrix(halfSize,halfSize);
@@ -137,50 +134,42 @@ void MatrixList::compute(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_o
 	Matrix * aR = new Matrix(halfSize,halfSize);
 	Matrix * bR = new Matrix(halfSize,halfSize);
 
+//#pragma omp parallel
+//{
 #pragma omp task
 {
 	this->add(A,A_off_X+0,A_off_Y+0,A,A_off_X+halfSize,A_off_Y+halfSize,aR,0,0,halfSize);		//a11+a22
 	this->add(B,B_off_X+0,B_off_Y+0,B,B_off_X+halfSize,B_off_Y+halfSize,bR,0,0,halfSize);		//b11+b22
 	this->compute(aR,0,0,bR,0,0,p1,0,0,halfSize);							//p1=a11+a22 * b11+b22
-}
 
-#pragma omp task
-{
 	this->add(A,A_off_X+halfSize,A_off_Y+0,A,A_off_X+halfSize,A_off_Y+halfSize,aR,0,0,halfSize);	//a21+a22
 	this->compute(aR,0,0,B,B_off_X+0,B_off_Y+0,p2,0,0,halfSize);					//p2=a21+a22 * b11
-}
 
-#pragma omp task
-{
 	this->sub(B,B_off_X+0,B_off_Y+halfSize,B,B_off_X+halfSize,B_off_Y+halfSize,bR,0,0,halfSize);	//b12-b22
 	this->compute(A,A_off_X+0,A_off_Y+0,bR,0,0,p3,0,0,halfSize);					//p3=a11 * b12-b22
-}
 
-#pragma omp task
-{
 	this->sub(B,B_off_X+halfSize,B_off_Y+0,B,B_off_X+0,B_off_Y+0,bR,0,0,halfSize);			//b21-b11
 	this->compute(A,A_off_X+halfSize,A_off_Y+halfSize,bR,0,0,p4,0,0,halfSize);			//p4=a22 * b21-b11
 }
 
-#pragma omp task
-{
-	this->add(A,A_off_X+0,A_off_Y+0,A,A_off_X+0,A_off_Y+halfSize,aR,0,0,halfSize);			//a11+a12
-	this->compute(aR,0,0,B,B_off_X+halfSize,B_off_Y+halfSize,p5,0,0,halfSize);			//p5=a11+a12 * b22
-}
+#pragma omp taskwait
 
 #pragma omp task
 {
+
+	this->add(A,A_off_X+0,A_off_Y+0,A,A_off_X+0,A_off_Y+halfSize,aR,0,0,halfSize);			//a11+a12
+	this->compute(aR,0,0,B,B_off_X+halfSize,B_off_Y+halfSize,p5,0,0,halfSize);			//p5=a11+a12 * b22
+
 	this->sub(A,A_off_X+halfSize,A_off_Y+0,A,A_off_X+0,A_off_Y+0,aR,0,0,halfSize);			//a21-a11
 	this->add(B,B_off_X+0,B_off_Y+0,B,B_off_X+0,B_off_Y+halfSize,bR,0,0,halfSize);			//b11+b12
 	this->compute(aR,0,0,bR,0,0,p6,0,0,halfSize);							//p6=a21-a11 * b11+b22
-}
 
-#pragma omp task
-{
 	this->sub(A,A_off_X+0,A_off_Y+halfSize,A,A_off_X+halfSize,A_off_Y+halfSize,aR,0,0,halfSize);	//a12-a22
 	this->add(B,B_off_X+halfSize,B_off_Y+0,B,B_off_X+halfSize,B_off_Y+halfSize,bR,0,0,halfSize);	//b21+b22
 	this->compute(aR,0,0,bR,0,0,p7,0,0,halfSize);							//p7=a12-a22 * b21+b22
 }
+#pragma omp taskwait
+
 
 	this->add(p3,0,0,p5,0,0,C,C_off_X+0,C_off_Y+halfSize,halfSize);					//c12=p3+p5
 	this->add(p2,0,0,p4,0,0,C,C_off_X+halfSize,C_off_Y+0,halfSize);					//c21=p2+p4
@@ -202,10 +191,8 @@ void MatrixList::compute(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_o
 	delete p7;
 	delete aR;
 	delete bR;
-
-#pragma omp taskwait
-
 }
+
 
 int MatrixList::nextPowerOf2(int number) const {
 	return (pow(2,ceil(log2(number))));
@@ -223,6 +210,8 @@ int MatrixList::maxDim() const {
 }
 
 void MatrixList::strassen () {
+	omp_set_num_threads(cpuNumber); // nastavenie poctu spustenych vlakien
+
 	this->mStrassen = new Matrix (m1->getDimX(),m2->getDimY());
 
 	if (this->m1->getDimX() != this->m1->getDimY() or
@@ -258,7 +247,13 @@ void MatrixList::strassen () {
 	}
 	else {
 		start_timer=omp_get_wtime();
+#pragma omp parallel 
+{
+#pragma omp single
+{
 		this->compute(this->m1,0,0,this->m2,0,0,this->mStrassen,0,0,this->m1->getDimX());
+}
+}
 		end_timer=omp_get_wtime();
 	}
 	
