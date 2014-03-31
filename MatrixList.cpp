@@ -131,56 +131,82 @@ void MatrixList::compute(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_o
 	Matrix * p5 = new Matrix(halfSize,halfSize);
 	Matrix * p6 = new Matrix(halfSize,halfSize);
 	Matrix * p7 = new Matrix(halfSize,halfSize);
-	Matrix * aR = new Matrix(halfSize,halfSize);
-	Matrix * bR = new Matrix(halfSize,halfSize);
+
+	Matrix * aR1 = new Matrix(halfSize,halfSize);
+	Matrix * bR1 = new Matrix(halfSize,halfSize);
+
+	Matrix * aR2 = new Matrix(halfSize,halfSize);
+	Matrix * bR2 = new Matrix(halfSize,halfSize);
+
+	Matrix * aR3 = new Matrix(halfSize,halfSize);
+	Matrix * bR3 = new Matrix(halfSize,halfSize);
+
+	Matrix * aR4 = new Matrix(halfSize,halfSize);
+	Matrix * bR4 = new Matrix(halfSize,halfSize);
+
+
 
 //#pragma omp parallel
 //{
-#pragma omp task
+#pragma omp task default (shared)
 {
-	this->add(A,A_off_X+0,A_off_Y+0,A,A_off_X+halfSize,A_off_Y+halfSize,aR,0,0,halfSize);		//a11+a22
-	this->add(B,B_off_X+0,B_off_Y+0,B,B_off_X+halfSize,B_off_Y+halfSize,bR,0,0,halfSize);		//b11+b22
-	this->compute(aR,0,0,bR,0,0,p1,0,0,halfSize);							//p1=a11+a22 * b11+b22
+	this->add(A,A_off_X+0,A_off_Y+0,A,A_off_X+halfSize,A_off_Y+halfSize,aR1,0,0,halfSize);		//a11+a22
+	this->add(B,B_off_X+0,B_off_Y+0,B,B_off_X+halfSize,B_off_Y+halfSize,bR1,0,0,halfSize);		//b11+b22
+	this->compute(aR1,0,0,bR1,0,0,p1,0,0,halfSize);							//p1=a11+a22 * b11+b22
 
-	this->add(A,A_off_X+halfSize,A_off_Y+0,A,A_off_X+halfSize,A_off_Y+halfSize,aR,0,0,halfSize);	//a21+a22
-	this->compute(aR,0,0,B,B_off_X+0,B_off_Y+0,p2,0,0,halfSize);					//p2=a21+a22 * b11
-
-	this->sub(B,B_off_X+0,B_off_Y+halfSize,B,B_off_X+halfSize,B_off_Y+halfSize,bR,0,0,halfSize);	//b12-b22
-	this->compute(A,A_off_X+0,A_off_Y+0,bR,0,0,p3,0,0,halfSize);					//p3=a11 * b12-b22
-
-	this->sub(B,B_off_X+halfSize,B_off_Y+0,B,B_off_X+0,B_off_Y+0,bR,0,0,halfSize);			//b21-b11
-	this->compute(A,A_off_X+halfSize,A_off_Y+halfSize,bR,0,0,p4,0,0,halfSize);			//p4=a22 * b21-b11
+	this->add(A,A_off_X+halfSize,A_off_Y+0,A,A_off_X+halfSize,A_off_Y+halfSize,aR1,0,0,halfSize);	//a21+a22
+	this->compute(aR1,0,0,B,B_off_X+0,B_off_Y+0,p2,0,0,halfSize);					//p2=a21+a22 * b11
 }
+
+#pragma omp task default (shared)
+{
+	this->sub(B,B_off_X+halfSize,B_off_Y+0,B,B_off_X+0,B_off_Y+0,bR2,0,0,halfSize);		//b21-b11
+	this->compute(A,A_off_X+halfSize,A_off_Y+halfSize,bR2,0,0,p4,0,0,halfSize);			//p4=a22 * b21-b11
+
+	this->sub(A,A_off_X+halfSize,A_off_Y+0,A,A_off_X+0,A_off_Y+0,aR2,0,0,halfSize);			//a21-a11
+	this->add(B,B_off_X+0,B_off_Y+0,B,B_off_X+0,B_off_Y+halfSize,bR2,0,0,halfSize);			//b11+b12
+	this->compute(aR2,0,0,bR2,0,0,p6,0,0,halfSize);							//p6=a21-a11 * b11+b22
+}
+
+
+#pragma omp task default (shared)
+{
+	this->sub(B,B_off_X+0,B_off_Y+halfSize,B,B_off_X+halfSize,B_off_Y+halfSize,bR3,0,0,halfSize);	//b12-b22
+	this->compute(A,A_off_X+0,A_off_Y+0,bR3,0,0,p3,0,0,halfSize);					//p3=a11 * b12-b22
+
+	this->sub(A,A_off_X+0,A_off_Y+halfSize,A,A_off_X+halfSize,A_off_Y+halfSize,aR3,0,0,halfSize);	//a12-a22
+	this->add(B,B_off_X+halfSize,B_off_Y+0,B,B_off_X+halfSize,B_off_Y+halfSize,bR3,0,0,halfSize);	//b21+b22
+	this->compute(aR3,0,0,bR3,0,0,p7,0,0,halfSize);							//p7=a12-a22 * b21+b22
+}
+
+	this->add(A,A_off_X+0,A_off_Y+0,A,A_off_X+0,A_off_Y+halfSize,aR4,0,0,halfSize);			//a11+a12
+	this->compute(aR4,0,0,B,B_off_X+halfSize,B_off_Y+halfSize,p5,0,0,halfSize);			//p5=a11+a12 * b22
+
 
 #pragma omp taskwait
 
-#pragma omp task
+#pragma omp task default (shared)
 {
-
-	this->add(A,A_off_X+0,A_off_Y+0,A,A_off_X+0,A_off_Y+halfSize,aR,0,0,halfSize);			//a11+a12
-	this->compute(aR,0,0,B,B_off_X+halfSize,B_off_Y+halfSize,p5,0,0,halfSize);			//p5=a11+a12 * b22
-
-	this->sub(A,A_off_X+halfSize,A_off_Y+0,A,A_off_X+0,A_off_Y+0,aR,0,0,halfSize);			//a21-a11
-	this->add(B,B_off_X+0,B_off_Y+0,B,B_off_X+0,B_off_Y+halfSize,bR,0,0,halfSize);			//b11+b12
-	this->compute(aR,0,0,bR,0,0,p6,0,0,halfSize);							//p6=a21-a11 * b11+b22
-
-	this->sub(A,A_off_X+0,A_off_Y+halfSize,A,A_off_X+halfSize,A_off_Y+halfSize,aR,0,0,halfSize);	//a12-a22
-	this->add(B,B_off_X+halfSize,B_off_Y+0,B,B_off_X+halfSize,B_off_Y+halfSize,bR,0,0,halfSize);	//b21+b22
-	this->compute(aR,0,0,bR,0,0,p7,0,0,halfSize);							//p7=a12-a22 * b21+b22
-}
-#pragma omp taskwait
-
-
 	this->add(p3,0,0,p5,0,0,C,C_off_X+0,C_off_Y+halfSize,halfSize);					//c12=p3+p5
+}
+
+#pragma omp task default (shared)
+{
 	this->add(p2,0,0,p4,0,0,C,C_off_X+halfSize,C_off_Y+0,halfSize);					//c21=p2+p4
+}
 
-	this->add(p1,0,0,p4,0,0,aR,0,0,halfSize);							//p1+p4
-	this->add(aR,0,0,p7,0,0,bR,0,0,halfSize);							//p1+p4+p7
-	this->sub(bR,0,0,p5,0,0,C,C_off_X+0,C_off_Y+0,halfSize);					//c11=p1+p4+p7-p5
+#pragma omp task default (shared)
+{
+	this->add(p1,0,0,p4,0,0,aR1,0,0,halfSize);							//p1+p4
+	this->add(aR1,0,0,p7,0,0,bR1,0,0,halfSize);							//p1+p4+p7
+	this->sub(bR1,0,0,p5,0,0,C,C_off_X+0,C_off_Y+0,halfSize);					//c11=p1+p4+p7-p5
+}
 
-	this->add(p1,0,0,p3,0,0,aR,0,0,halfSize);							//p1+p3
-	this->add(aR,0,0,p6,0,0,bR,0,0,halfSize);							//p1+p3+p6
-	this->sub(bR,0,0,p2,0,0,C,C_off_X+halfSize,C_off_Y+halfSize,halfSize);				//c22=p1+p3+p6-p2
+	this->add(p1,0,0,p3,0,0,aR2,0,0,halfSize);							//p1+p3
+	this->add(aR2,0,0,p6,0,0,bR2,0,0,halfSize);							//p1+p3+p6
+	this->sub(bR2,0,0,p2,0,0,C,C_off_X+halfSize,C_off_Y+halfSize,halfSize);				//c22=p1+p3+p6-p2
+
+#pragma omp taskwait
 
 	delete p1;
 	delete p2;
@@ -189,8 +215,12 @@ void MatrixList::compute(Matrix *A, int A_off_X, int A_off_Y, Matrix *B, int B_o
 	delete p5;
 	delete p6;
 	delete p7;
-	delete aR;
-	delete bR;
+	delete aR1;
+	delete bR1;
+	delete aR2;
+	delete bR2;
+	delete aR3;
+	delete bR3;
 }
 
 
