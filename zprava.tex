@@ -13,6 +13,7 @@
 \usepackage{pdfpages}
 
 \hyphenation{pa-ra-le-li-zu-je-me}
+\hyphenation{do-sia-hli}
 
 \begin{document}
 
@@ -79,9 +80,9 @@ for i in 0..Ax
 
 \section{Implementácia paralelného riešenia pomocou OpenMP}
 
-Prostredie OpenMP sa ukazálo byť veľmi jednoduché na implementáciu triviálneho algoritmu s použitím viacerých vlákien. Snažili sme sa, aby každé vlákno vykonávalo približne rovnako veľkú časť kódu, čo sme dosiahli statickým rozdelením záťaže priamo v prostredí OpenMP. Aby sme v prípade menších vstupných matíc a naopak väčšieho počtu vlákien zamedzili plytvaniu prostriedkov, miesto jedného cyklu paralelizujeme dvojicu vonkajších cyklov s pomocou kľúčového slova \emph{collapse}.
+Prostredie OpenMP sa ukázalo byť veľmi jednoduché na implementáciu triviálneho algoritmu s použitím viacerých vlákien. Vzhľadom na to, že objem práce v najvnútornejšom cykle je rovnaký pre všetky vlákna, použili sme statické rozdelenie záťaže priamo v prostredí OpenMP definované kľúčovým slovom \emph{static}. Aby sme v prípade menších vstupných matíc v kombinácii s väčším počtom vlákien zamedzili plytvaniu prostriedkov, miesto jedného cyklu paralelizujeme dvojicu vonkajších cyklov s pomocou kľúčového slova \emph{collapse}.
 
-Presný kód definujúci paralelizáciu ako triviálneho algoritmu, tak aj algoritmu s použitím loop tiling-u:
+Kód definujúci paralelizáciu ako triviálneho algoritmu, tak aj algoritmu s použitím loop tiling-u vyzerá nasledovne:
 
 \begin{verbatim}
 #pragma omp parallel for collapse (2) default(shared) private(i,j,k)
@@ -90,7 +91,7 @@ schedule(static)
 
 <TO DO - Strassenov algoritmus paralelne>
 
-Pre potreby merania na serveri star.fit.cvut.cz sme vygenerovali trojicu pseudonáhodných štvorcových matíc o veľkosti 1024, 2048 a 4096. Program samozrejme dokáže spracovať aj iné ako štvorcové matice, ale pre férové porovnanie Strassenovho algoritmu s ostatnými riešeniami, používame práve štvorcové matice o veľkosti  $2^n$ - naša implementácia Strassena automaticky dopĺňa vstupné matice na túto veľkosť.
+Pre potreby merania na serveri star.fit.cvut.cz sme vygenerovali trojicu pseudonáhodných štvorcových matíc o veľkosti 1024, 2048 a 4096. Program samozrejme dokáže spracovať aj iné ako štvorcové matice, ale pre férové porovnanie Strassenovho algoritmu s ostatnými riešeniami, používame práve štvorcové matice o veľkosti  $2^n$ - naša implementácia Strassena automaticky dopĺňa vstupné matice na najbližšiu vyššiu takúto veľkosť.
 
 Namerané hodnoty sú uvedené v tabuľke \ref{tab1} pre dané vstupné matice, počet vlákien 1, 2, 4, 6, 8, 12, 24 pre všetky hore popísané implementácie. Výsledné hodnoty predstavujú aritmetický priemer trojice meraní.
 
@@ -99,17 +100,52 @@ Namerané hodnoty sú uvedené v tabuľke \ref{tab1} pre dané vstupné matice, 
 			\hline                        
 			& \multicolumn{3}{|c|}{\textbf{1024x1024}} & \multicolumn{3}{|c|}{\textbf{2048x2048}} & \multicolumn{3}{|c|}{\textbf{4096x4096}} \\ \hline
 			& \textbf{CL} & \textbf{LT} & \textbf{ST} & \textbf{CL} & \textbf{LT} & \textbf{ST} & \textbf{CL} & \textbf{LT} & \textbf{ST} \\ \hline
-			\textbf{-n 1} & 11.33	& 10.02 &  & 125.20 & 79.60 &  & 1347.2 & 651.67 & \\ \hline
-			\textbf{-n 2} & 5.84	& 5.47 &  & 56.44 & 41.22 &  & 565.86 & 327.14 & \\ \hline
-			\textbf{-n 4} & 2.93	& 2.82 &  & 30.03 & 20.79 &  & 302.63 & 163.87 & \\ \hline
-			\textbf{-n 6} & 1.96	& 1.94 &  & 20.59 & 13.96 &  & 203.99 & 109.19 & \\ \hline
-			\textbf{-n 8} & 1.48	& 1.46 &  & 16.33 & 10.57 &  & 158.66 & 81.65 & \\ \hline
-			\textbf{-n 12} & 0.98	& 1.07 &  & 10.74 & 7.05 &  & 114.60 & 56.16 & \\ \hline
-			\textbf{-n 24} & 0.92	& 0.81 &  & 8.40 & 5.87 &  & 83.37 & 50.18 & \\ \hline
+			\textbf{-n 1} & 11.33	& 10.02 & 4.85  & 125.20 & 79.60 & 34.15 & 1347.2 & 651.67 & 239.81\\ \hline
+			\textbf{-n 2} & 5.84	& 5.47 &  2.82  & 56.44 & 41.22 & 19.82  & 565.86 & 327.14 & 138.82\\ \hline
+			\textbf{-n 4} & 2.93	& 2.82 &  1.49  & 30.03 & 20.79 & 10.21  & 302.63 & 163.87 & 70.66\\ \hline
+			\textbf{-n 6} & 1.96	& 1.94 &  1.10  & 20.59 & 13.96 & 7.35   & 203.99 & 109.19 & 52.04\\ \hline
+			\textbf{-n 8} & 1.48	& 1.46 &  0.85  & 16.33 & 10.57 & 5.80   & 158.66 & 81.65 & 39.93\\ \hline
+			\textbf{-n 12} & 0.98	& 1.07 &  0.60  & 10.74 & 7.05 & 3.96    & 114.60 & 56.16 & 27.91\\ \hline
+			\textbf{-n 24} & 0.92	& 0.81 &  0.50  & 8.40 & 5.87 & 3.14     & 83.37 & 50.18 & 19.71\\ \hline
 		\end{tabularx}
-	\caption{OpenMP meranie [s]
-	 (CL = classic, LT = loop-tiling, ST = Strassen)}
+	\caption{Trvanie behu v sekundách na OpenMP (CL = classic, LT = loop-tiling, ST = Strassen)}
 	\label{tab1}
 	\end{table}
+
+Nasledovné grafy znázorňujú ako paralelný čas, tak aj paralelnú cenu pre všetky tri vstupy pre variabilný počet vlákien.
+
+\begin{figure}\centering
+	\includegraphics[scale=1]{./images/1024_rychlost.pdf}
+	\label{gr:graf1}
+\end{figure}
+
+\begin{figure}\centering
+	\includegraphics[scale=1]{./images/2048_rychlost.pdf}
+	\label{gr:graf2}
+\end{figure}  
+
+\begin{figure}\centering
+	\includegraphics[scale=1]{./images/4096_rychlost.pdf}
+	\label{gr:graf3}
+\end{figure}  
+
+\begin{figure}\centering
+	\includegraphics[scale=1]{./images/1024_cena.pdf}
+	\label{gr:graf4}
+\end{figure}  
+
+\begin{figure}\centering
+	\includegraphics[scale=1]{./images/2048_cena.pdf}
+	\label{gr:graf5}
+\end{figure}  
+
+\begin{figure}\centering
+	\includegraphics[scale=1]{./images/4096_cena.pdf}
+	\label{gr:graf6}
+\end{figure}  
+
+Ako môžeme vidieť, pre takmer všetky vlákna (výnimkou je 24 vlákien) a všetky implementácie sme dosiahli približne lineárne zrýchlenie, a teda konštantnú paralelnú cenu. Zvýšenie paralelnej ceny pre 24 vlákien spočíva v tom, že nami použitý hardvér nemal k dispozícii 24 fyzických procesorov, a teda zákonite došlo k prepínaniu kontextu v rámci jedného fyzického procesora. V porovnaní s predmetom BI-PPR, na ktorom sme pracovali s distribuovanou pamätťou, nedošlo k superlineárnemu zrýchleniu. 
+
+Ak by sme porovnávali jednotlivé implementácie medzi sebou, klasický a optimalizovaný algoritmus majú rovnakú asymptotickú zložitosť. Napriek tomu dosahuje optimalizovaná verzia zrýchlenie približne v rozsahu 10 až 50 percent v závislosti od veľkosti vstupu (čím väčší vstup, tým väčšie zrýchlenie). Strassenov algoritmus, ktorého zložitosť je $\mathcal{O}$($n^{2.8074}$), dosahuje v porovnaní s optimalizovanou variantou zrýchlenie približne o 50 percent.
 
 \end{document}
