@@ -76,12 +76,12 @@ for i in 0..Ax
       C[ii][jj] += A[ii][kk] * B[kk][jj];
 \end{verbatim}
 
-Strassenov algoritmus je asymptoticky rýchlejší než štandardný multiplikatívny algoritmus. Jeho asymptotická zložitosť je $\mathcal{O}$($n^{2.8074}$). Jedna sa o rekurzivný algoritmus, ktorý maticu \emph{A} a \emph{B} rozdeli na podmatice \emph{A_{11}},\emph{A_{12}},\emph{A_{21}},\emph{A_{22}} a podobne aj maticu \emph{B}. 
+Strassenov algoritmus je asymptoticky rýchlejší než štandardný multiplikatívny algoritmus. Jeho asymptotická zložitosť je $\mathcal{O}$($n^{2.8074}$). Jedna sa o rekurzivný algoritmus, ktorý maticu \emph{A} a \emph{B} rozdeli na podmatice \emph{A11},\emph{A12},\emph{A21},\emph{A22} a podobne aj maticu \emph{B}. 
 
 A =
  \begin{pmatrix}
-  A_{11} & A_{12} \\
-  A_{21} & A_{22} \\
+  A11 & A12 \\
+  A21 & A22 \\
  \end{pmatrix}
 
 Následne do pomocných matíc M1 až M7, uloží čiastočné výsledky násobenia. V tomto kroku dochádza k zrýchleniu voči klasickému násobeniu, kedže dochádza iba k siedmym násobeniam. Pri týchto siedmych násobeniach opäť využívame Strassenov algoritmus až do určitej hranice, pri ktorej je už efektívnejšie používať klasický spôsob. Táto hranica závisí od implementácie a od hardvéru. V našom prípade bola empirický stanovená na hodnotu 64. Na konci algoritmu sa medzivýsledky v pomocných maticiach M1 až M7 spoja a vytvoria matice C1, C2, C3, C4, ktoré spolu vytvárajú výslednú maticu C.
@@ -97,7 +97,7 @@ Kód definujúci paralelizáciu ako triviálneho algoritmu, tak aj algoritmu s p
 schedule(static)
 \end{verbatim}
 
-<TO DO - Strassenov algoritmus paralelne>
+Pri paralelizácií Strassenovho algoritmu sme využili koštrukciu
 
 \section{Merania}
 
