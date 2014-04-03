@@ -264,7 +264,13 @@ void MatrixList::strassen () {
 				m2Resize->getMatrix()[i][j] = m2->getMatrix()[i][j];
 
 		start_timer=omp_get_wtime();
+#pragma omp parallel 
+{
+#pragma omp single
+{
 		this->compute(m1Resize,0,0,m2Resize,0,0,mStrassenResize,0,0,newSize);
+}
+}
 		end_timer=omp_get_wtime();
 
 		for (int i=0; i<this->mStrassen->getDimX(); i++)
