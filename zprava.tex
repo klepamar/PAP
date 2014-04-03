@@ -11,6 +11,7 @@
 \usepackage{mathtools}
 \usepackage{listings}
 \usepackage{pdfpages}
+\usepackage{amsmath}
 
 \hyphenation{pa-ra-le-li-zu-je-me}
 \hyphenation{do-sia-hli}
@@ -76,15 +77,16 @@ for i in 0..Ax
       C[ii][jj] += A[ii][kk] * B[kk][jj];
 \end{verbatim}
 
-Strassenov algoritmus je asymptoticky rýchlejší než štandardný multiplikatívny algoritmus. Jeho asymptotická zložitosť je $\mathcal{O}$($n^{2.8074}$). Jedna sa o rekurzivný algoritmus, ktorý maticu \emph{A} a \emph{B} rozdeli na podmatice \emph{A11},\emph{A12},\emph{A21},\emph{A22} a podobne aj maticu \emph{B}. 
+Strassenov algoritmus je asymptoticky rýchlejší než štandardný multiplikatívny algoritmus. Jeho asymptotická zložitosť je $\mathcal{O}$($n^{2.8074}$). Jedna sa o rekurzivný algoritmus, ktorý maticu \emph{A} a \emph{B} rozdeli na podmatice \emph{A11}, \emph{A12}, \emph{A21}, \emph{A22} a podobne aj maticu \emph{B}. 
 
-A =
+$A =
  \begin{pmatrix}
   A11 & A12 \\
   A21 & A22 \\
  \end{pmatrix}
+$ 
 
-Následne do pomocných matíc M1 až M7, uloží čiastočné výsledky násobenia. V tomto kroku dochádza k zrýchleniu voči klasickému násobeniu, kedže dochádza iba k siedmym násobeniam. Pri týchto siedmych násobeniach opäť využívame Strassenov algoritmus až do určitej hranice, pri ktorej je už efektívnejšie používať klasický spôsob. Táto hranica závisí od implementácie a od hardvéru. V našom prípade bola empirický stanovená na hodnotu 64. Na konci algoritmu sa medzivýsledky v pomocných maticiach M1 až M7 spoja a vytvoria matice C1, C2, C3, C4, ktoré spolu vytvárajú výslednú maticu C.
+Následne do pomocných matíc \emph{p1} až \emph{p7} uloží čiastočné výsledky násobenia. V tomto kroku dochádza k zrýchleniu voči klasickému násobeniu, kedže dochádza iba k siedmim násobeniam v porovnaní s ôsmimi násobeniami v prípade klasického alogritmu. Pri týchto siedmich násobeniach opäť využívame Strassenov algoritmus až do určitej hranice, pri ktorej je už efektívnejšie používať klasický spôsob. Táto hranica závisí od implementácie a od hardvéru. V našom prípade bola empiricky stanovená na hodnotu 64. Na konci algoritmu sa medzivýsledky v pomocných maticiach \emph{p1} až \emph{p7} spoja a vytvoria matice \emph{C1}, \emph{C2}, \emph{C3}, \emph{C4}, ktoré spolu vytvárajú výslednú maticu C.
 
 \section{Implementácia paralelného riešenia pomocou OpenMP}
 
@@ -97,7 +99,7 @@ Kód definujúci paralelizáciu ako triviálneho algoritmu, tak aj algoritmu s p
 schedule(static)
 \end{verbatim}
 
-Pri paralelizácií Strassenovho algoritmu sme využili koštrukciu
+Pri paralelizácií Strassenovho algoritmu sme využili koštrukciu \emph{Task}. Jedná sa o základnú jednotku paralelizácie. Paralelizácia spočíva v tom, že násobenie medzivýsledkov \emph{p1} až \emph{p7} sme rovnomerne rozdelili do 4 skupin. Prvé 3 skupiny sa rozdelia do 3 taskov a poslednú skupinu bude násobiť riadiace vlákno. Na konci tejto kritickej sekcie sa použije konštrukcia \emph{taskwait}, ktorá zablokuje riadiace vlákno, kým jednotlivé tasky nebudú dokončené. Záverečné spájanie medzivýsledkov do výslednej matice \emph{C} sme taktiž rozdelili do 4 taskov.
 
 \section{Merania}
 
