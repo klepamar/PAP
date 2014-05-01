@@ -7,17 +7,14 @@
 
 using namespace std;
 
-extern char* result;
-extern ofstream resultStream;
-
 Matrix::Matrix (int x, int y)
 {
 	this->dimX = x;
 	this->dimY = y;
 	this->matrix = new int[x*y];
 
-	for (int j=0; j<(x*y); j++)
-		matrix[j] = 0;
+	for (int i=0; i<(x*y); i++)
+		matrix[i] = 0;
 }
 
 Matrix::~Matrix ()

@@ -12,16 +12,15 @@
 
 using namespace std;
 
-
-
-/* DEFINE "GLOBAL" VARIABLES HERE */
-
-char* filename; // where input matrixes are stored
-bool verbose = false; // produce debugging messages with -v flag
-int block = 100; // block size used for loop tiling in classical approach
-int cpuNumber; // number of processesors active during OpenMP execution
-
-/* END OF GLOBAL VARIABLES DEFINITION */
+/* CUDA error handling */
+static void HandleError(cudaError_t err, const char *file, int line)
+{
+	if (err != cudaSuccess)
+    {
+		printf( "%s in %s at line %d\n", cudaGetErrorString(err), file, line );
+        exit(EXIT_FAILURE);
+    }
+}
 
 /* read source data from input file & initialise matrixes */
 void readInputFile (Matrix* &m1, Matrix* &m2)
@@ -46,13 +45,22 @@ void readInputFile (Matrix* &m1, Matrix* &m2)
 	in.close(); // end up processing file
 }
 
+/* verify that matrixes are square and matrix C can be computed */
+void verifyMatrixes (Matrix* &m1, Matrix* &m2)
+{
+	if (m1->getDimX() != m1->getDimY())
+		throw "matrix 1 must be square.";
+	if (m2->getDimX() != m2->getDimY())
+		throw "matrix 2 must be square.";
+	if (m1->getDimY() !+ m2->getDimX())
+		throw "resultant matrix cannot be computed from input matrixes.";
+}
+
 /* display help when invalid option has been used */
 void displayHelp ()
 {
 	cout << "Usage:" << endl <<
 			"\t-f FILE\tinput file with matrixes" << endl <<
-			"\t-n NO_OF_CPUS\t number of active CPUs" << endl <<
-			"\t-v\tverbose mode (optional)" << endl;
 }
 
 /* determine input file and possibly other arguments */
@@ -71,15 +79,6 @@ void processArguments (int argc, char** argv)
 			filename = argv[i+1];
 			i++; // next "i" is already resolved
 		}
-		else if (strcmp(argv[i],"-v") == 0) // -v...verbose mode
-		{
-			verbose = true;
-		}
-		else if (strcmp(argv[i],"-n") == 0) // -n...number of active CPUs
-		{
-			cpuNumber = atoi(argv[i+1]);
-			i++;
-		}
 		else
 		{
 			displayHelp();
@@ -88,15 +87,7 @@ void processArguments (int argc, char** argv)
 	}
 }
 
-static void HandleError(cudaError_t err, const char *file, int line)
-{
-        if (err != cudaSuccess)
-        {
-                printf( "%s in %s at line %d\n", cudaGetErrorString( err ), file, line );
-                exit(EXIT_FAILURE);
-        }
-}
-
+/* simple kernel with extensive usage of global GPU memory */
 __global__
 void GPU_kernel1 (int * matrixA, int *matrixB, int *matrixC, int matrixSize)
 {
@@ -112,6 +103,7 @@ void GPU_kernel1 (int * matrixA, int *matrixB, int *matrixC, int matrixSize)
         matrixC[i * matrixSize + j] = result;
 }
 
+/* more advanced kernel with copying of submatrixes from global GPU memory to shared memory */
 __global__
 void GPU_kernel2 (int * matrixA, int * matrixB, int * matrixC, int matrixSize) {
         __shared__ int As[TILE_WIDTH][TILE_WIDTH];
@@ -124,25 +116,25 @@ void GPU_kernel2 (int * matrixA, int * matrixB, int * matrixC, int matrixSize) {
 
         int row = by * TILE_WIDTH + ty;
         int col = bx * TILE_WIDTH + tx;
-        float Cvalue = 0;
+        int Cvalue = 0;
 
-        for (int phase = 0; phase < matrixSize/TILE_WIDTH; phase ++) {
-                As[ty][tx] = matrixA[row*matrixSize + (phase * TILE_WIDTH + tx)];
-                Bs[ty][tx] = matrixB[col + (phase*TILE_WIDTH + ty)*matrixSize];
-
-                __syncthreads();
-
-                for (int k=0; k<TILE_WIDTH; k++)
-                        Cvalue += As[ty][k] * Bs[k][tx];
-
-                __syncthreads();
+        for (int phase = 0; phase < matrixSize/TILE_WIDTH; phase ++) 
+        {
+			As[ty][tx] = matrixA[row*matrixSize + (phase * TILE_WIDTH + tx)];
+            Bs[ty][tx] = matrixB[col + (phase*TILE_WIDTH + ty)*matrixSize];
+            __syncthreads();
+            for (int k=0; k<TILE_WIDTH; k++)
+            {
+				Cvalue += As[ty][k] * Bs[k][tx];
+			}
+            __syncthreads();
         }
-
         matrixC[row*matrixSize+col] = Cvalue;
 }
-
+/* run kernel GPU from this function, prepare required CUDA structures (for time measurement) */
 void multiply (int *matrixA, int *matrixB, int *matrixC, int matrixSize) {
-	// lokalne CUDA premenne
+	
+		// local CUDA variables
         cudaDeviceProp prop;
         cudaEvent_t start, stop;
         float elapsedTime;
@@ -152,69 +144,69 @@ void multiply (int *matrixA, int *matrixB, int *matrixC, int matrixSize) {
         HANDLE_ERROR(cudaGetDevice(&whichDevice));
         HANDLE_ERROR(cudaGetDeviceProperties(&prop, whichDevice));
 
-        // meranie casu
+        // used for time measurement
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
-        // pointre do globalnej GPU pamate
+        // global GPU pointers
         int *devMatrixA;
         int *devMatrixB;
         int *devMatrixC;
 
-        // celkova velkost matice
+        // total size of matrix in memory
         int overallSize = matrixSize * matrixSize * sizeof(int);
 
-        // alokujem potrebne miesto na GPU
+        // allocation of required space on global GPU memory
         cudaMalloc ((void **)&devMatrixA, overallSize);
         cudaMalloc ((void **)&devMatrixB, overallSize);
         cudaMalloc ((void **)&devMatrixC, overallSize);
 
-        // skopirujem obsah pamate jednotlivych poli z MM do globalnej pamate GPU
+        // copy variables from MM to global GPU memory
         cudaMemcpy(devMatrixA, matrixA, overallSize, cudaMemcpyHostToDevice);
         cudaMemcpy(devMatrixB, matrixB, overallSize, cudaMemcpyHostToDevice);
         cudaMemcpy(devMatrixC, matrixC, overallSize, cudaMemcpyHostToDevice);
 
-        // zaciatok merania casu
+        // time measurement - start
         cudaEventRecord(start, 0);
 
-        // definicia velkosti mriezky & poctu vlakien v nej
+        // specify block size & number of threads in respective dimensions
         dim3 dimGrid(matrixSize/TILE_WIDTH, matrixSize/TILE_WIDTH);
         dim3 dimBlock(TILE_WIDTH,TILE_WIDTH);
 
-        //spustim kernel
+        // run kernel
         GPU_kernel2<<<dimGrid,dimBlock>>>(devMatrixA, devMatrixB, devMatrixC, matrixSize);
 
-        // koniec merania casu & vypocet casu straveneho na GPU
+        // time measurmenet - end; calculate overall computation time
         cudaThreadSynchronize();
         cudaEventRecord(stop, 0) ;
         cudaEventSynchronize(stop) ;
         cudaEventElapsedTime(&elapsedTime, start, stop);
 
-        //vratim obsah pamate GPU do CPU
+        // copy variables from global GPU back to MM
         cudaMemcpy(matrixC, devMatrixC, overallSize, cudaMemcpyDeviceToHost);
 
-	//zobrazim vysledok
-	printf("GPU time taken: %g ms\n", elapsedTime); 
+		// display elapsed time
+		printf("GPU time taken: %g ms\n", elapsedTime); 
 
-        // uvolnime pamat na GPU
+        // global GPU variables deallocation
         cudaFree (devMatrixA);
         cudaFree (devMatrixB);
         cudaFree (devMatrixC);
 
-        // uvolnenie eventov
+        // CUDA events deallocation
         cudaEventDestroy(start);
         cudaEventDestroy(stop);
 }
 
 int main(int argc, char** argv)
-{
-	
+{	
 	Matrix* m1=NULL;
 	Matrix* m2=NULL;
 	try
 	{
 		processArguments(argc,argv);
 		readInputFile(m1,m2);
+		verifiyMatrixes(m1,m2);
 	}
 	catch (const char* exception)
 	{
@@ -227,12 +219,11 @@ int main(int argc, char** argv)
 	Matrix * m3 = new Matrix(m1->getDimX(),m2->getDimY());
 	
 	multiply(m1->getMatrix(),m2->getMatrix(),m3->getMatrix(),m1->getDimX());
-//	m3->showMatrix();
+	m3->showMatrix();
 	
 	delete m1; // matrixes created in readInputFile method
 	delete m2;
 	delete m3; 
-	
-	
+		
 	return (EXIT_SUCCESS);
 }

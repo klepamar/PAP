@@ -1,5 +1,5 @@
 CC=nvcc
-#CFLAGS=-fopenmp -O3
+CFLAGS=-O3
 
 all: index
 
