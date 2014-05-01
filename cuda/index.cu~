@@ -83,6 +83,10 @@ void processArguments (int argc, char** argv)
 	}
 }
 
+void multiply (int *matrixA, int *matrixB, int *matrixC, int matrixSize) {
+	cout << "hello world" << endl;
+}
+
 int main(int argc, char** argv)
 {
 	
@@ -91,8 +95,7 @@ int main(int argc, char** argv)
 	try
 	{
 		processArguments(argc,argv);
-		readInputFile(m1,m2,ml);
-		verifyMatrixSize(ml);
+		readInputFile(m1,m2);
 	}
 	catch (const char* exception)
 	{

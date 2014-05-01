@@ -95,15 +95,13 @@ int main(int argc, char** argv)
 	try
 	{
 		processArguments(argc,argv);
-		readInputFile(m1,m2,ml);
-		verifyMatrixSize(ml);
+		readInputFile(m1,m2);
 	}
 	catch (const char* exception)
 	{
 		cout << "Exception: " << exception << endl;
 		delete m1; // matrixes created in readInputFile method
 		delete m2;
-		delete m3; // matrix list containing both matrixes
 		exit (EXIT_FAILURE);
 	}
 	
