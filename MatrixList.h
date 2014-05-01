@@ -31,6 +31,7 @@ public:
 	void classic();
 	void classicOptimised();
 	void strassen();
+	void cuda();
 };
 
 #endif	/* MATRIXLIST_H */

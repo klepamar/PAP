@@ -298,3 +298,9 @@ void MatrixList::strassen () {
 	if (verbose) cout << "Strassen algorithm (" << cpuNumber << " threads) took " << optimised_length << " seconds." << endl;
 
 }
+
+
+void MatrixList::cuda()
+{
+	cout << "hello world" << endl;
+}

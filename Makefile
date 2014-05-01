@@ -1,4 +1,4 @@
-CC=g++
+CC=nvcc
 CFLAGS=-fopenmp -O3
 
 all: index
