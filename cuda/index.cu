@@ -7,7 +7,12 @@
 #include <stdlib.h>
 #include "Matrix.h"
 
+#define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
+#define TILE_WIDTH 2
+
 using namespace std;
+
+
 
 /* DEFINE "GLOBAL" VARIABLES HERE */
 
@@ -81,6 +86,15 @@ void processArguments (int argc, char** argv)
 			throw "unknown arguments provided.";
 		}
 	}
+}
+
+static void HandleError(cudaError_t err, const char *file, int line)
+{
+        if (err != cudaSuccess)
+        {
+                printf( "%s in %s at line %d\n", cudaGetErrorString( err ), file, line );
+                exit(EXIT_FAILURE);
+        }
 }
 
 __global__
