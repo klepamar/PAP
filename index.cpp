@@ -119,8 +119,7 @@ int main(int argc, char** argv)
 	
 	//m1->displayAddresses();
 	//ml->classic();
-	//ml->classicOptimised();
-	m1->cuda();
+	ml->classicOptimised();
 	//ml->strassen();
 	
 	delete m1; // matrixes created in readInputFile method

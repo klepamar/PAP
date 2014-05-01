@@ -12,6 +12,9 @@
 
 using namespace std;
 
+/* global variables definition */
+char* filename;
+
 /* CUDA error handling */
 static void HandleError(cudaError_t err, const char *file, int line)
 {
@@ -52,7 +55,7 @@ void verifyMatrixes (Matrix* &m1, Matrix* &m2)
 		throw "matrix 1 must be square.";
 	if (m2->getDimX() != m2->getDimY())
 		throw "matrix 2 must be square.";
-	if (m1->getDimY() !+ m2->getDimX())
+	if (m1->getDimY() != m2->getDimX())
 		throw "resultant matrix cannot be computed from input matrixes.";
 }
 
@@ -60,7 +63,7 @@ void verifyMatrixes (Matrix* &m1, Matrix* &m2)
 void displayHelp ()
 {
 	cout << "Usage:" << endl <<
-			"\t-f FILE\tinput file with matrixes" << endl <<
+			"\t-f FILE\tinput file with matrixes" << endl;
 }
 
 /* determine input file and possibly other arguments */
@@ -86,10 +89,26 @@ void processArguments (int argc, char** argv)
 		}
 	}
 }
+/* very simple kernel used when matrixSize < TILE_WIDTH */
+__global__
+void GPU_kernelSmall (int * matrixA, int * matrixB, int * matrixC, int matrixSize)
+{
+	// cislo bloku, cislo vlakna
+	int i = blockIdx.x;
+	int j = threadIdx.x;
+	int result;
+	
+	for (int k=0; k<matrixSize; k++)
+	{
+		result += matrixA[i * matrixSize + k] * matrixB[k * matrixSize + j];
+	}
+	matrixC[i * matrixSize + j] = result;
+}
+
 
 /* simple kernel with extensive usage of global GPU memory */
 __global__
-void GPU_kernel1 (int * matrixA, int *matrixB, int *matrixC, int matrixSize)
+void GPU_kernel1 (int * matrixA, int * matrixB, int * matrixC, int matrixSize)
 {
         // cislo bloku, cislo vlakna
         int i = blockIdx.y*TILE_WIDTH + threadIdx.y;
@@ -105,7 +124,8 @@ void GPU_kernel1 (int * matrixA, int *matrixB, int *matrixC, int matrixSize)
 
 /* more advanced kernel with copying of submatrixes from global GPU memory to shared memory */
 __global__
-void GPU_kernel2 (int * matrixA, int * matrixB, int * matrixC, int matrixSize) {
+void GPU_kernel2 (int * matrixA, int * matrixB, int * matrixC, int matrixSize) 
+{
         __shared__ int As[TILE_WIDTH][TILE_WIDTH];
         __shared__ int Bs[TILE_WIDTH][TILE_WIDTH];
 
@@ -174,7 +194,10 @@ void multiply (int *matrixA, int *matrixB, int *matrixC, int matrixSize) {
         dim3 dimBlock(TILE_WIDTH,TILE_WIDTH);
 
         // run kernel
-        GPU_kernel2<<<dimGrid,dimBlock>>>(devMatrixA, devMatrixB, devMatrixC, matrixSize);
+        if (matrixSize < TILE_WIDTH)
+		GPU_kernelSmall<<<matrixSize, matrixSize>>>(devMatrixA, devMatrixB, devMatrixC, matrixSize);
+	else
+		GPU_kernel2<<<dimGrid,dimBlock>>>(devMatrixA, devMatrixB, devMatrixC, matrixSize);
 
         // time measurmenet - end; calculate overall computation time
         cudaThreadSynchronize();
@@ -206,7 +229,7 @@ int main(int argc, char** argv)
 	{
 		processArguments(argc,argv);
 		readInputFile(m1,m2);
-		verifiyMatrixes(m1,m2);
+		verifyMatrixes(m1,m2);
 	}
 	catch (const char* exception)
 	{
@@ -219,6 +242,10 @@ int main(int argc, char** argv)
 	Matrix * m3 = new Matrix(m1->getDimX(),m2->getDimY());
 	
 	multiply(m1->getMatrix(),m2->getMatrix(),m3->getMatrix(),m1->getDimX());
+	//m1->showMatrix();
+	//cout << endl;
+	//m2->showMatrix();
+	//cout << endl;
 	m3->showMatrix();
 	
 	delete m1; // matrixes created in readInputFile method
