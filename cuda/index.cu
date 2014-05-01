@@ -8,7 +8,7 @@
 #include "Matrix.h"
 
 #define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
-#define TILE_WIDTH 2
+#define TILE_WIDTH 16
 
 using namespace std;
 
@@ -189,18 +189,12 @@ void multiply (int *matrixA, int *matrixB, int *matrixC, int matrixSize) {
         cudaEventRecord(stop, 0) ;
         cudaEventSynchronize(stop) ;
         cudaEventElapsedTime(&elapsedTime, start, stop);
-        printf("GPU time taken: %g ms\n", elapsedTime);
 
         //vratim obsah pamate GPU do CPU
         cudaMemcpy(matrixC, devMatrixC, overallSize, cudaMemcpyDeviceToHost);
 
-        // zobrazim vysledok
-        for (int i=0; i<matrixSize; i++)
-                for (int j=0; j<matrixSize; j++)
-                        if ((j+1) == matrixSize)
-                                printf ("%d\n", matrixC[i* matrixSize + j]);
-                        else
-                                printf ("%d ", matrixC[i* matrixSize + j]);
+	//zobrazim vysledok
+	printf("GPU time taken: %g ms\n", elapsedTime); 
 
         // uvolnime pamat na GPU
         cudaFree (devMatrixA);
@@ -232,7 +226,8 @@ int main(int argc, char** argv)
 	
 	Matrix * m3 = new Matrix(m1->getDimX(),m2->getDimY());
 	
-	multiply(*m1->getMatrix(),*m2->getMatrix(),*m3->getMatrix(),m1->getDimX());
+	multiply(m1->getMatrix(),m2->getMatrix(),m3->getMatrix(),m1->getDimX());
+//	m3->showMatrix();
 	
 	delete m1; // matrixes created in readInputFile method
 	delete m2;

@@ -6,19 +6,18 @@
 class Matrix {
 private:
 	int dimX, dimY;
-	int** matrix;
+	int* matrix;
 public:
 	Matrix(int x, int y);
 	
 	virtual ~Matrix();
 	
 	void fillMatrix(std::istream &in);
-	void displayMatrix() const;
 	void showMatrix() const;
 	void displayAddresses() const;
 	int getDimX() const;
 	int getDimY() const;
-	int** getMatrix() const;
+	int* getMatrix() const;
 };
 
 #endif	/* MATRIX_H */
