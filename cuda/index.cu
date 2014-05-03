@@ -126,6 +126,7 @@ void GPU_kernel1 (int * matrixA, int * matrixB, int * matrixC, int matrixSize)
 __global__
 void GPU_kernel2 (int * matrixA, int * matrixB, int * matrixC, int matrixSize) 
 {
+	// shared memory allocated for submatrixes
         __shared__ int As[TILE_WIDTH][TILE_WIDTH];
         __shared__ int Bs[TILE_WIDTH][TILE_WIDTH];
 
@@ -133,24 +134,37 @@ void GPU_kernel2 (int * matrixA, int * matrixB, int * matrixC, int matrixSize)
         int by = blockIdx.y;
         int tx = threadIdx.x;
         int ty = threadIdx.y;
+	int subMatrixSize = matrixSize/TILE_WIDTH;
 
+	// element to be calculated
         int row = by * TILE_WIDTH + ty;
         int col = bx * TILE_WIDTH + tx;
         int Cvalue = 0;
 
-        for (int phase = 0; phase < matrixSize/TILE_WIDTH; phase ++) 
+	// for all required blocks
+        for (int temp=0; temp<subMatrixSize; temp++) 
         {
-			As[ty][tx] = matrixA[row*matrixSize + (phase * TILE_WIDTH + tx)];
-            Bs[ty][tx] = matrixB[col + (phase*TILE_WIDTH + ty)*matrixSize];
-            __syncthreads();
-            for (int k=0; k<TILE_WIDTH; k++)
-            {
-				Cvalue += As[ty][k] * Bs[k][tx];
-			}
-            __syncthreads();
+		// read from global memory & store in shared memory
+	    	As[ty][tx] = matrixA[row * matrixSize + (temp * TILE_WIDTH + tx)];
+		Bs[ty][tx] = matrixB[col + (temp * TILE_WIDTH + ty) * matrixSize];
+            	
+		// wait for reading from global memory
+		__syncthreads();
+            	
+		// calculate using values stored in shared memory
+		for (int k=0; k<TILE_WIDTH; k++)
+            	{
+			Cvalue += As[ty][k] * Bs[k][tx];
+		}
+            	
+		// wait for calculation before proceeding to a new submatrix(=block)
+		__syncthreads();
         }
+
+	// after all blocks finished, copy value back into global GPU memory
         matrixC[row*matrixSize+col] = Cvalue;
 }
+
 /* run kernel GPU from this function, prepare required CUDA structures (for time measurement) */
 void multiply (int *matrixA, int *matrixB, int *matrixC, int matrixSize) {
 	
