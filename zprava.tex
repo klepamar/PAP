@@ -15,6 +15,8 @@
 
 \hyphenation{pa-ra-le-li-zu-je-me}
 \hyphenation{do-sia-hli}
+\hyphenation{em-pi-ric-ké-ho}
+\hyphenation{ma-ti-ca}
 
 \begin{document}
 
@@ -101,7 +103,7 @@ schedule(static)
 
 Pri paralelizácií Strassenovho algoritmu sme využili koštrukciu \emph{Task}. Jedná sa o základnú jednotku paralelizácie. Paralelizácia spočíva v tom, že násobenie medzivýsledkov \emph{p1} až \emph{p7} sme rovnomerne rozdelili do 4 skupin. Prvé 3 skupiny sa rozdelia do 3 taskov a poslednú skupinu bude násobiť riadiace vlákno. Na konci tejto kritickej sekcie sa použije konštrukcia \emph{taskwait}, ktorá zablokuje riadiace vlákno, kým jednotlivé tasky nebudú dokončené. Záverečné spájanie medzivýsledkov do výslednej matice \emph{C} sme taktiž rozdelili do 4 taskov.
 
-\section{Merania}
+\section{Merania na CPU}
 
 Pre potreby merania na serveri star.fit.cvut.cz sme vygenerovali trojicu pseudonáhodných štvorcových matíc o veľkosti 1024, 2048 a 4096. Program samozrejme dokáže spracovať aj iné ako štvorcové matice, ale pre férové porovnanie Strassenovho algoritmu s ostatnými riešeniami, používame práve štvorcové matice o veľkosti  $2^n$ - naša implementácia Strassena automaticky dopĺňa vstupné matice na najbližšiu vyššiu takúto veľkosť.
 
@@ -159,5 +161,45 @@ Nasledovné grafy znázorňujú ako paralelný čas, tak aj paralelnú cenu pre 
 Ako môžeme vidieť, pre takmer všetky vlákna (výnimkou je 24 vlákien) a všetky implementácie sme dosiahli približne lineárne zrýchlenie, a teda konštantnú paralelnú cenu. Zvýšenie paralelnej ceny pre 24 vlákien spočíva v tom, že nami použitý hardvér nemal k dispozícii 24 fyzických procesorov, a teda zákonite došlo k prepínaniu kontextu v rámci jedného fyzického procesora. V porovnaní s predmetom BI-PPR, na ktorom sme pracovali s distribuovanou pamätťou, nedošlo k superlineárnemu zrýchleniu. 
 
 Ak by sme porovnávali jednotlivé implementácie medzi sebou, klasický a optimalizovaný algoritmus majú rovnakú asymptotickú zložitosť. Napriek tomu dosahuje optimalizovaná verzia zrýchlenie približne v rozsahu 10 až 50 percent v závislosti od veľkosti vstupu (čím väčší vstup, tým väčšie zrýchlenie). Strassenov algoritmus, ktorého zložitosť je $\mathcal{O}$($n^{2.8074}$), dosahuje v porovnaní s optimalizovanou variantou zrýchlenie približne o 50 percent.
+
+\section{Implementácia na GPU}
+
+Implementáciu na GPU sme vykonali v 2 krokoch. V prvom kroku sme sa sústredili na vytvorenie funkčného riešenia, ktoré pracovalo výlučne s \emph{globálnou GPU pamäťou}. V druhom kroku sme sa časté prístupy do pamäte tohto typu snažili zminimalizovať pomocou \emph{zdieľanej pamäte}, ktorá je súčasťou každého symetrického multiprocesora, a teda bližšie ku koncovým vláknam.
+
+V prvej implementácii sme spúšťali kernel s parametrami \emph{(matrixSize, matrixSize)}, čiže pre každý element výstupnej matice sme spustili 1 vlákno, ktoré v rámci kernelu vykonalo skalárny súčin i-teho riadku matice A s j-tym stĺpcom matice B a výsledok zapísalo do matice C na pozíciu [i][j]. Takto spúšťané riešenie je zároveň limitované hodnotou maximálneho počtu vlákien v rámci jedného bloku, ktorá sa líši v závislosti od Cuda Compute Capabilities (CC). Tento problém sa dá obísť zvýšením počtu blokov a rozdelením do viacerých dimenzií a naopak zmenšením počtu spúšťaných vlákien v 1 bloku tak, aby sa celkový počet spustených vlákien rovnal pôvodnej hodnote druhej mocnine \emph{matrixSize}.
+
+V druhej implmenetácii sme pristúpili k redukcii počtu prístupov do globálnej GPU pamäte. Miesto nej využijeme zdieľanú pamäť - jej problémom je veľkosť rádovo v desiatkach kB, a preto rozdelíme problém násobenia dvoch veľkých matíc na niekoľko násobení menších podmatíc, ktoré sa svojou veľkosťou zmestia do shared memory. Aplikujeme teda podobný princíp ako v prípade optimalizovaného sekvenčného riešenia, v ktorom sme využili loop tiling pre zvýšenie využitia cache pamäte.
+
+Otázkou bolo preto určiť veľkosť submatice. Čim väčšiu veľkosť TILE\textunderscore WIDTH sme volili, tým viac sme využívali shared memory, až sme došli k jej limitom. Tie sa zastavili na hodnote 64, pri ktorej program už nefungoval. Na druhej strane, s narastajúcou veľkosťou TILE\textunderscore WIDTH klesá počet aktívnych blokov, ktoré sa o shared memory v rámci jedného symetrického multiprocesoru navzájom delia. Na základe empirického skúmania sme nakoniec zvolili TILE\textunderscore WIDTH rovnú 16.
+
+\section{Merania na GPU}
+
+Merania sme realizovali na všetkých možných grafických procesoroch na školskom klastri. Výstupom je priemerný čas z trojice meraní pre vstupné matice o veľkosti 256, 512, 1024, 2048, 4096 a 8192. Testy sme realizovali na grafických procesoroch NVIDIA GTX 470, GTX 480, GTX 590 a Tesla K 40. Z výsledkov vidíme, že program bežal najrýchlejšie pre GPU Tesla K40 a naopak najpomalšie pre GeForce GTX 470. Rozdiel medzi týmtito dvomi grafickými akcelerátormi nebol nijako závratný, približne 30 až 40 percent v prospech K 40.
+
+Rozdiel medzi behom na CPU a GPU bol naopak priepastný - pre 24-vláknové CPU nám optimalizovaný algoritmus klasického násobenia bežal nad maticami o veľkosti 4096 približne minútu, zatiaľ čo na GPU bežal nad rovnakým vstupom približne pol sekundy v závislosti od konkrétnej architektúry.
+
+\begin{table}\centering
+	\begin{tabularx}{\textwidth}{ | X | X | X | X | X | X | X | }
+	  \hline                       
+				& \textbf{256} 	& \textbf{512} 	& \textbf{1024} 	& \textbf{2048} 	& \textbf{4096} 	& \textbf{8192} 		\\ \hline
+	  \textbf{GTX 470} 	& 0.207 & 1.455 & 11.270& 89.944& 717.77& 5948.61	\\ \hline
+	  \textbf{GTX 480} 	& 0.176 & 1.174	& 9.132	& 72.692& 580.81& 4849.28	\\ \hline
+	  \textbf{GTX 590} 	& 0.173 & 1.258 & 9.846 & 78.502& 627.67& 5193.220	\\ \hline
+	  \textbf{Tesla K40} & 0.140 & 0.936 & 7.509 & 59.764& 476.84& 3787.197  \\ \hline
+	\end{tabularx}
+\caption{Trvanie behu v ms v prostredí CUDA}
+\label{tab2}
+\end{table}
+
+\begin{figure}\centering
+	\includegraphics[scale=1]{./images/gpu.pdf}
+	\label{gr:graf7}
+\end{figure}  
+
+\section{Záver}
+
+Podarilo sa nám implementovať a následne zparalelizovať ako CPU, tak aj GPU verziu násobenia matíc. Program pre CPU sme implementovali v 3 variantách - klasické násobenie, klasické násobenie s loop tilingom a Strassenov algoritmus. Pri následnej paralelizácii v prostredí OpenMP sme dosiahli lineárne zrýchlenie pre všetky tri implementácie. V prostredí GPU sme implementovali výhradne klasický algoritmus, Strassenov algoritmus sme z dôvodu problematickej implementácie rekurzie na GPU vynechali.
+
+Prostredie GPU je mohutne paralelné, pri porovnaní rovnakých vstupných dát (matica 4096), klasický algoritmus s použitím loop tilingu, sme dosiahli 1000-násobné zrýchlenie (10 minút, presne 651.67s na 1-jadrovom CPU vs. 476.84ms na najrýchlejšom GPU, Tesla K40). Na druhej strane, programy v CUDA sú pomerne náročné na implementáciu, zatiaľ čo prostredie OpenMP je svojím high level prístupom veľmi príjemné pre programátora.
 
 \end{document}
